@@ -1,5 +1,5 @@
 //var answers : Array<{p:Player, a:Int}> = [];
-var playerInfo : Array<{p:Player, hiredWarchief:Int, warchiefDiedAt:Float}> = [];
+var playerInfo : Array<{p:Player, units:Array<{kind:UnitKind, hired:Int, diedAt:Float}>}> = [];
 var respawnTime : Int = 10;
 
 function init()
@@ -9,28 +9,22 @@ function init()
 		var i = 0;
 		for (p in state.startPlayers)
 		{
-			playerInfo.push({p: p, hiredWarchief: 0, warchiefDiedAt: -1});
+			var info = {p: p, units: []};
+			playerInfo.push(info);
+			for(unit in p.getAvailableWarchiefs())
+			{
+				info.units.push({ kind: unit, hired: 0, diedAt: -1 });
+			}
 			//playerInfo[i].p = p;
 			//playerInfo[i].hiredWarchief = 0;
 			//playerInfo[i].warchiefDiedAt = -1;
 
-			p.addResource(Resource.Iron, 15);
-			p.addResource(Resource.Money, 150);
+			p.addResource(Resource.Iron, 30);
+			p.addResource(Resource.Money, 1500);
 			i++;
 		}
 	}
 }
-
-// Just assign an index to a player
-/*function playerId(p : Player) : Int{
-      var i = 0;
-      for(other in state.startPlayers){
-            if(other == p)
-                  return i;
-            i++;
-      }
-      return -1;
-}*/
 
 function regularUpdate(dt : Float) {
 	if(isHost())
@@ -38,28 +32,48 @@ function regularUpdate(dt : Float) {
 		debug("" + state.time);
 		for (info in playerInfo)
 		{
-			//TODO: GetWarchiefs(), getAvailableWarchiefs(), handle horse, bear etc.
-			if(info.p.getWarchief() != null)
+			for(unitInfo in info.units)
 			{
-				if(info.hiredWarchief == 0)
+				//TODO: GetWarchiefs(), getAvailableWarchiefs(), handle horse, bear etc.
+				var found = false;
+				for(unit in info.p.units)
 				{
-					debug("player " + info.p + " hired warchief");
+					if(unit.kind == unitInfo.kind)
+					{
+						found = true;
+					}
 				}
-				info.hiredWarchief = 1;
-			}
-			else if(info.hiredWarchief == 1 && info.warchiefDiedAt == -1)
-			{
-				debug("player " + info.p + " warchief died");
-				info.warchiefDiedAt = state.time;
-			}
-			else if(info.hiredWarchief == 1 && ((state.time - info.warchiefDiedAt) >= respawnTime))
-			{
-				debug("player " + info.p + " warchief respawning");
-				//info.p.getTownHall().zone.addUnit(Unit.Warchief, 1, info.p);
-				var hall = info.p.getTownHall();
-				summonWarchief(info.p, hall.zone, hall.x + 10, hall.y + 10);
 
-				info.warchiefDiedAt = -1;
+				if(found)
+				{
+					if(unitInfo.hired == 0)
+					{
+						debug("player " + info.p + " hired warchief");
+					}
+					unitInfo.hired = 1;
+				}
+				else if(unitInfo.hired == 1 && unitInfo.diedAt == -1)
+				{
+					debug("player " + info.p + " warchief died");
+					unitInfo.diedAt = state.time;
+				}
+				else if(unitInfo.hired == 1 && ((state.time - unitInfo.diedAt) >= respawnTime))
+				{
+					debug("player " + info.p + " warchief respawning");
+
+					var hall = info.p.getTownHall();
+					// For some reason addUnit doesn't work for the vanilla warchief
+					if(unitInfo.kind == Unit.Warchief)
+					{
+						summonWarchief(info.p, hall.zone, hall.x + 10, hall.y + 10);
+					}
+					else
+					{
+						hall.zone.addUnit(unitInfo.kind, 1, info.p);
+					}
+
+					unitInfo.diedAt = -1;
+				}
 			}
 		}
 	}
