@@ -1,27 +1,30 @@
-//var answers : Array<{p:Player, a:Int}> = [];
 var playerInfo : Array<{p:Player, units:Array<{kind:UnitKind, hired:Int, diedAt:Float}>}> = [];
-var respawnTime : Int = 10;
+//var respawnTime : Int = 120;
+var DEBUG = false;
 
 function init()
 {
-	if(isHost() && state.time == 0)
+	if(state.time == 0)
 	{
-		var i = 0;
-		for (p in state.startPlayers)
+		if(isHost())
 		{
-			var info = {p: p, units: []};
-			playerInfo.push(info);
-			for(unit in p.getAvailableWarchiefs())
+			var i = 0;
+			for (p in state.startPlayers)
 			{
-				info.units.push({ kind: unit, hired: 0, diedAt: -1 });
-			}
-			//playerInfo[i].p = p;
-			//playerInfo[i].hiredWarchief = 0;
-			//playerInfo[i].warchiefDiedAt = -1;
+				var info = {p: p, units: []};
+				playerInfo.push(info);
+				for(unit in p.getAvailableWarchiefs())
+				{
+					info.units.push({ kind: unit, hired: 0, diedAt: -1 });
+				}
 
-			p.addResource(Resource.Iron, 30);
-			p.addResource(Resource.Money, 1500);
-			i++;
+				if(DEBUG)
+				{
+					p.addResource(Resource.Iron, 30);
+					p.addResource(Resource.Money, 1500);
+				}
+				i++;
+			}
 		}
 	}
 }
@@ -29,12 +32,10 @@ function init()
 function regularUpdate(dt : Float) {
 	if(isHost())
 	{
-		debug("" + state.time);
 		for (info in playerInfo)
 		{
 			for(unitInfo in info.units)
 			{
-				//TODO: GetWarchiefs(), getAvailableWarchiefs(), handle horse, bear etc.
 				var found = false;
 				for(unit in info.p.units)
 				{
@@ -48,18 +49,19 @@ function regularUpdate(dt : Float) {
 				{
 					if(unitInfo.hired == 0)
 					{
-						debug("player " + info.p + " hired warchief");
+						debugPrint("player " + info.p + " hired " + unitInfo.kind);
 					}
 					unitInfo.hired = 1;
 				}
 				else if(unitInfo.hired == 1 && unitInfo.diedAt == -1)
 				{
-					debug("player " + info.p + " warchief died");
+					debugPrint("player " + info.p + " " + unitInfo.kind + " died");
 					unitInfo.diedAt = state.time;
 				}
-				else if(unitInfo.hired == 1 && ((state.time - unitInfo.diedAt) >= respawnTime))
+				//else if(unitInfo.hired == 1 && ((state.time - unitInfo.diedAt) >= respawnTime))
+				else if(unitInfo.hired == 1 && info.p.getCooldownHero(unitInfo.kind) <= state.time)
 				{
-					debug("player " + info.p + " warchief respawning");
+					debugPrint("player " + info.p + " " + unitInfo.kind + " respawning");
 
 					var hall = info.p.getTownHall();
 					// For some reason addUnit doesn't work for the vanilla warchief
@@ -69,7 +71,7 @@ function regularUpdate(dt : Float) {
 					}
 					else
 					{
-						hall.zone.addUnit(unitInfo.kind, 1, info.p);
+						hall.zone.addUnit(unitInfo.kind, 1, info.p, true);
 					}
 
 					unitInfo.diedAt = -1;
@@ -79,8 +81,10 @@ function regularUpdate(dt : Float) {
 	}
 }
 
-function saveState() {
-      state.scriptProps = {
-            //myFloat : myFloat    // Your variable to save. Ensure the name of the variable is repeated twice here
-      }
+function debugPrint(string : String)
+{
+	if(DEBUG)
+	{
+		debug(string);
+	}
 }
